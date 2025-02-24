@@ -12,7 +12,9 @@ df['datetime'] = pd.to_datetime(df['datetime'])
 # Initialize session state for trade count if it doesn't exist
 if 'trade_count' not in st.session_state:
     st.session_state.trade_count = 0
-
+# Initialize session state
+if "trade_data" not in st.session_state:
+    st.session_state.trade_data = pd.DataFrame(columns=["Buy Time", "Buy Price", "Sell Time", "Sell Price", "Profit"])
 # Function to calculate EMA
 def calculate_ema(data, span=9):
     return data['Close'].ewm(span=span, adjust=False).mean()
@@ -25,26 +27,37 @@ def calculate_macd(data):
     data['Signal Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
 
 # Function to save trade details to CSV
-def save_trade_to_csv(buy_time, buy_price, sell_time, sell_price, profit, filename="trades.csv"):
-    trade_data = {
-        'Buy Time': [buy_time],
-        'Buy Price': [buy_price],
-        'Sell Time': [sell_time],
-        'Sell Price': [sell_price],
-        'Profit': [profit]
-    }
-    trade_df = pd.DataFrame(trade_data)
+# def save_trade_to_csv(buy_time, buy_price, sell_time, sell_price, profit, filename="trades.csv"):
+#     trade_data = {
+#         'Buy Time': [buy_time],
+#         'Buy Price': [buy_price],
+#         'Sell Time': [sell_time],
+#         'Sell Price': [sell_price],
+#         'Profit': [profit]
+#     }
+#     trade_df = pd.DataFrame(trade_data)
 
-    # If file doesn't exist, create it, otherwise append to it
-    try:
-        # Try to open the file to check if it exists
-        existing_df = pd.read_csv(filename)
-        # Append the new trade to the existing data
-        existing_df = pd.concat([existing_df, trade_df], ignore_index=True)
-        existing_df.to_csv(filename, index=False)
-    except FileNotFoundError:
-        # If the file doesn't exist, create a new one
-        trade_df.to_csv(filename, index=False)
+#     # If file doesn't exist, create it, otherwise append to it
+#     try:
+#         # Try to open the file to check if it exists
+#         existing_df = pd.read_csv(filename)
+#         # Append the new trade to the existing data
+#         existing_df = pd.concat([existing_df, trade_df], ignore_index=True)
+#         existing_df.to_csv(filename, index=False)
+#     except FileNotFoundError:
+#         # If the file doesn't exist, create a new one
+#         trade_df.to_csv(filename, index=False)
+
+# Function to save trade data to session state
+def save_trade_to_csv(buy_time, buy_price, sell_time, sell_price, profit):
+    new_trade = pd.DataFrame({
+        "Buy Time": [buy_time],
+        "Buy Price": [buy_price],
+        "Sell Time": [sell_time],
+        "Sell Price": [sell_price],
+        "Profit": [profit]
+    })
+    st.session_state.trade_data = pd.concat([st.session_state.trade_data, new_trade], ignore_index=True)
 
 # Add indicators
 df['EMA_9'] = calculate_ema(df, span=9)
@@ -192,3 +205,8 @@ if st.session_state.success_message:
 st.sidebar.write(f"🔹 **Buy Price:** ${buy_price}")
 st.sidebar.write(f"🔹 **Sell Price:** ${sell_price}")
 st.sidebar.write(f"🔹 **Profit/Loss:** ${profit}")
+
+# Provide a download button for CSV
+if not st.session_state.trade_data.empty:
+    csv = st.session_state.trade_data.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download Trades CSV", data=csv, file_name="trades.csv", mime="text/csv")
